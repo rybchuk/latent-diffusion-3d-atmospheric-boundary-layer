@@ -1,0 +1,127 @@
+model:
+  base_learning_rate: 5.0e-5   # set to target_lr by starting main.py with '--scale_lr False'
+  target: ldm.models.diffusion.ddpm_3d.LatentDiffusion
+  params:
+    linear_start: 0.0015
+    linear_end: 0.0155
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    loss_type: l1
+    first_stage_key: image
+    cond_stage_key: online_masking
+    mask_mode: mask1
+    mask_dir1: "data/geo_les/masks/mask_raaw.npy"
+    mask_dir2: "data/geo_les/masks/mask_thick.npy"
+    image_height: 32  # Compressed image sizes
+    image_width: 32
+    image_depth: 16    
+    pixel_height: 128  # Original image sizes
+    pixel_width: 128
+    pixel_depth: 64    
+    channels: 3
+    cond_stage_trainable: False
+    concat_mode: true
+    conditioning_key: concat
+    scale_by_std: True
+    monitor: val/loss_simple_ema
+
+    scheduler_config:
+      target: ldm.lr_scheduler.LambdaLinearScheduler
+      params:
+        warm_up_steps: [10000]
+        cycle_lengths: [10000000000000]
+        f_start: [1.e-6]
+        f_max: [1.]
+        f_min: [1.]
+        verbosity_interval: 1
+
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel_3d.UNetModel
+      params:
+        image_size: 32  # Only used in UNet if pooling="attention"
+        in_channels: 7
+        out_channels: 3
+        model_channels: 192
+        attention_resolutions: [8,4,2]  
+        num_res_blocks: 2
+        channel_mult: [ 1,2,4 ]
+        num_heads: 8
+        use_scale_shift_norm: True
+        resblock_updown: True
+
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL3D
+      params:
+        embed_dim: 3
+        monitor: val/rec_loss
+        ckpt_path: "models/autoencoder/epoch=000143.ckpt"
+        ddconfig:
+          in_channels: 3
+          n_channels: 16
+          z_channels: 3
+          out_channels: 3
+          num_res_blocks: 3
+          attn_resolutions: []
+          double_z: True
+          ch_mult: [1,2,4]
+        lossconfig:
+          target: torch.nn.Identity
+
+    cond_stage_config: __is_first_stage__
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 2
+    num_workers: 5
+    wrap: False
+    train:
+      target: ldm.data.les.LEStrain
+      params:
+        data_root: "data/geo_les/train/"
+        data_bounds: [2.86975098,
+                        12.5567627,
+                        -0.9810791,
+                        4.91235352,
+                        -1.98095703,
+                        2.5579834
+                    ] # [umin, umax, vmin, vmax[, wmin, wmax]]
+        image_size: [128, 128, 64]
+    validation:
+      target: ldm.data.les.LESvalidation
+      params:
+        data_root: "data/geo_les/validation_small/"
+        data_bounds: [2.86975098,
+                        12.5567627,
+                        -0.9810791,
+                        4.91235352,
+                        -1.98095703,
+                        2.5579834
+                    ] # [umin, umax, vmin, vmax[, wmin, wmax]]
+        image_size: [128, 128, 64]
+    test:
+      target: ldm.data.les.LEStest
+      params:
+        data_root: "data/geo_les/test_three_200/"
+        data_bounds: [2.86975098,
+                        12.5567627,
+                        -0.9810791,
+                        4.91235352,
+                        -1.98095703,
+                        2.5579834
+                    ] # [umin, umax, vmin, vmax[, wmin, wmax]]
+        image_size: [128, 128, 64]
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.NumpyLogger
+      params:
+        batch_frequency: 250
+        max_images: 8
+        increase_log_steps: False
+
+
+  trainer:
+    benchmark: True

@@ -1,0 +1,84 @@
+model:
+  base_learning_rate: 4.5e-6
+  target: ldm.models.autoencoder.AutoencoderKL3D
+  params:
+    monitor: "val/rec_loss"
+    embed_dim: 3
+    lossconfig:
+      target: ldm.modules.losses.LPIPSWithDiscriminator3D
+      params:
+        disc_start: 5001
+        cont1_start: 5001
+        cont2_start: 100001
+        disc_in_channels: 3
+        kl_weight: 0.000001
+        disc_weight: 0.5
+        perceptual_weight: 0.0
+        continuity_weight1: 2500000.0
+        continuity_weight2: 10000000.0
+
+    ddconfig:
+      in_channels: 3
+      n_channels: 16
+      z_channels: 3
+      out_channels: 3
+      num_res_blocks: 3
+      attn_resolutions: []
+      double_z: True
+      ch_mult: [1,2,4]
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 2
+    wrap: False
+    train:
+      target: ldm.data.les.LEStrain
+      params:
+        data_root: "data/geo_les/train/"
+        data_bounds: [2.86975098,
+                        12.5567627,
+                        -0.9810791,
+                        4.91235352,
+                        -1.98095703,
+                        2.5579834
+                    ] # [umin, umax, vmin, vmax[, wmin, wmax]]
+        image_size: [128, 128, 64]
+    validation:
+      target: ldm.data.les.LESvalidation
+      params:
+        data_root: "data/geo_les/validation_small/"
+        data_bounds: [2.86975098,
+                        12.5567627,
+                        -0.9810791,
+                        4.91235352,
+                        -1.98095703,
+                        2.5579834
+                    ] # [umin, umax, vmin, vmax[, wmin, wmax]]
+        image_size: [128, 128, 64]
+    test:
+      target: ldm.data.les.LEStest
+      params:
+        data_root: "data/geo_les/test/"
+        data_bounds: [2.86975098,
+                        12.5567627,
+                        -0.9810791,
+                        4.91235352,
+                        -1.98095703,
+                        2.5579834
+                    ] # [umin, umax, vmin, vmax[, wmin, wmax]]
+        image_size: [128, 128, 64]
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.NumpyLogger
+      params:
+        batch_frequency: 250
+        max_images: 8
+        increase_log_steps: True
+        clamp: False
+
+  trainer:
+    benchmark: True
+    accumulate_grad_batches: 2
