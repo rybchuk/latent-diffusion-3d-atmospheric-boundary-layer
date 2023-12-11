@@ -5,3 +5,7 @@ This repo contains much of the code developed in the manuscript ["Ensemble flow 
 
 This codebase works very similarly to the original LDM codebase, although we carry out inpainting differently. Here, inpainting is achieved by running `main.py` through `slurm/inpaint_*` as opposed to using an additional script.
 
+Below, we plug one of our LDM-generated samples back into our LES code, and demonstrate that the LES successfully runs and doesn't crash :) 
+
+https://github.com/rybchuk/latent-diffusion-3d-atmospheric-boundary-layer/assets/8021012/e3330e9d-e781-4b2b-8b74-4d47eef3c6d1
+
